@@ -10,10 +10,10 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-const RABBITMQ_URL = "amqp://guest:guest@localhost:5672/"
+const RABBIT_MQ_URL = "amqp://guest:guest@localhost:5672/"
 
 func main() {
-	conn, err := amqp.Dial(RABBITMQ_URL)
+	conn, err := amqp.Dial(RABBIT_MQ_URL)
 	failOnError(err, "Failed to connect RabbitMQ")
 	defer conn.Close()
 
@@ -21,29 +21,29 @@ func main() {
 	failOnError(err, "Failed to open a channel")
 	defer ch.Close()
 
-	q, err := ch.QueueDeclare(
-		"hello",
-		false,
+	err = ch.ExchangeDeclare(
+		"logs",
+		"fanout",
+		true,
 		false,
 		false,
 		false,
 		nil,
 	)
-	failOnError(err, "Failed to declare a queue")
+	failOnError(err, "Failed to declare an exchange")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	body := bodyFrom(os.Args)
 	err = ch.PublishWithContext(ctx,
+		"logs",
 		"",
-		q.Name,
 		false,
 		false,
 		amqp.Publishing{
-			DeliveryMode: amqp.Persistent,
-			ContentType:  "text/plain",
-			Body:         []byte(body),
+			ContentType: "text/plain",
+			Body:        []byte(body),
 		})
 
 	failOnError(err, "Failed to publish a message")

@@ -9,10 +9,10 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-const RABBITMQ_URL = "amqp://guest:guest@localhost:5672/"
+const RABBIT_MQ_URL = "amqp://guest:guest@localhost:5672/"
 
 func main() {
-	conn, err := amqp.Dial(RABBITMQ_URL)
+	conn, err := amqp.Dial(RABBIT_MQ_URL)
 	failOnError(err, "Failed to connect RabbitMQ")
 	defer conn.Close()
 
@@ -20,15 +20,34 @@ func main() {
 	failOnError(err, "Failed to open a channel")
 	defer ch.Close()
 
-	q, err := ch.QueueDeclare(
-		"hello",
-		false,
+	err = ch.ExchangeDeclare(
+		"logs",
+		"fanout",
+		true,
 		false,
 		false,
 		false,
 		nil,
 	)
+	failOnError(err, "Failed to declare an exchange")
+
+	q, err := ch.QueueDeclare(
+		"",
+		false, false,
+		true,
+		false,
+		nil,
+	)
 	failOnError(err, "Failed to declare a queue")
+
+	err = ch.QueueBind(
+		q.Name,
+		"",
+		"logs",
+		false,
+		nil,
+	)
+	failOnError(err, "Failed to bind a queue")
 
 	msgs, err := ch.Consume(
 		q.Name,
@@ -39,7 +58,6 @@ func main() {
 		false,
 		nil,
 	)
-
 	failOnError(err, "Failed to register a consumer")
 
 	var wg sync.WaitGroup
